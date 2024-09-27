@@ -5,7 +5,7 @@
  * Description: Adds better compatibility with Elementor and Elementor PRO.
  * Author: Misha Rudrastyh
  * Author URI: https://rudrastyh.com
- * Version: 1.3
+ * Version: 1.4
  */
 
 class Rudr_SWC_Elementor {
@@ -54,13 +54,48 @@ class Rudr_SWC_Elementor {
 					continue;
 				}
 
-				// template one
-				if( 'template' === $element[ 'widgetType' ] && isset( $element[ 'settings' ][ 'template_id' ] ) ) {
+				// social icons
+				if( 'social-icons' === $element[ 'widgetType' ] ) {
+					if( isset( $element[ 'settings' ][ 'social_icon_list' ] ) && is_array( $element[ 'settings' ][ 'social_icon_list' ] ) ) {
+						for( $i = 0; $i < count( $element[ 'settings' ][ 'social_icon_list' ] ); $i++ ) {
+							// only for custom icons
+
+							if( isset( $element[ 'settings' ][ 'social_icon_list' ][$i][ 'social_icon' ][ 'value' ][ 'url' ] ) && isset( $element[ 'settings' ][ 'social_icon_list' ][$i][ 'social_icon' ][ 'value' ][ 'id' ] ) ) {
+								$element[ 'settings' ][ 'social_icon_list' ][$i][ 'social_icon' ] = $this->process_icon_in_element( $element[ 'settings' ][ 'social_icon_list' ][$i][ 'social_icon' ], $blog );
+							}
+						}
+					}
+					continue;
+				}
+
+				// template / loop grid
+				if(
+					in_array( $element[ 'widgetType' ], array( 'template', 'loop-grid' ) )
+					&& isset( $element[ 'settings' ][ 'template_id' ] )
+				) {
 					// just replace if it is crossposted to a new blog
 					if( $crossposted_template_id = Rudr_Simple_WP_Crosspost::is_crossposted( $element[ 'settings' ][ 'template_id' ], Rudr_Simple_WP_Crosspost::get_blog_id( $blog ) ) ) {
 						$element[ 'settings' ][ 'template_id' ] = $crossposted_template_id;
 					}
 					continue;
+				}
+
+				// global widget
+				// if( 'global' === $element[ 'widgetType' ] && isset( $element[ 'templateID' ] ) ) {
+				// 	// just replace if it is crossposted to a new blog
+				// 	if( $crossposted_template_id = Rudr_Simple_WP_Crosspost::is_crossposted( $element[ 'templateID' ], Rudr_Simple_WP_Crosspost::get_blog_id( $blog ) ) ) {
+				// 		$element[ 'templateID' ] = (int) $crossposted_template_id;
+				// 	}
+				// 	continue;
+				// }
+
+				// popups
+				$element[ 'settings' ] = $this->process_popups( $element[ 'settings' ], $blog );
+
+				if( isset( $element[ 'settings' ][ 'icon_list' ] ) && is_array( $element[ 'settings' ][ 'icon_list' ] ) ) {
+					foreach( $element[ 'settings' ][ 'icon_list' ] as &$link ) {
+						$link = $this->process_popups( $link, $blog );
+					}
 				}
 
 				/***********************/
@@ -184,6 +219,48 @@ class Rudr_SWC_Elementor {
 
 		return $element_icon;
 
+	}
+
+
+	private function process_popups( $element_settings, $blog ) {
+
+		if(
+			empty( $element_settings[ '__dynamic__' ][ 'link' ] )
+			|| 0 !== strpos( $element_settings[ '__dynamic__' ][ 'link' ], '[elementor-tag' )
+		) {
+			return $element_settings;
+		}
+
+		$attributes = shortcode_parse_atts(
+			str_replace(
+				array( '[elementor-tag ', ']' ),
+				'',
+				stripslashes( $element[ 'settings' ][ '__dynamic__' ][ 'link' ] )
+			)
+		);
+
+		// we need to make sure it is a popup
+		if( empty( $attributes[ 'name' ] ) || 'popup' !== $attributes[ 'name' ] || empty( $attributes[ 'settings' ] ) ) {
+			return $element_settings;
+		}
+
+		$popup_settings = json_decode( urldecode( $attributes[ 'settings' ] ), true );
+		// popup template ID, oh my
+		if( isset( $popup_settings[ 'popup' ] ) && $popup_settings[ 'popup' ] && $crossposted_popup_id = Rudr_Simple_WP_Crosspost::is_crossposted( $popup_settings[ 'popup' ], Rudr_Simple_WP_Crosspost::get_blog_id( $blog ) ) ) {
+			// $popup_settings[ 'popup' ] = $crossposted_popup_id;
+			// $element[ 'settings' ][ '__dynamic__' ][ 'link' ] = str_replace(
+			// 	$attributes[ 'settings' ],
+			// 	urlencode( json_encode( $popup_settings ) ),
+			// 	$element[ 'settings' ][ '__dynamic__' ][ 'link' ]
+			// );
+			$element_settings[ '__dynamic__' ][ 'link' ] = str_replace(
+				'%22' . $popup_settings[ 'popup' ] . '%22',
+				'%22' . $crossposted_popup_id . '%22',
+				$element_settings[ '__dynamic__' ][ 'link' ]
+			);
+		}
+
+		return $element_settings;
 	}
 
 
