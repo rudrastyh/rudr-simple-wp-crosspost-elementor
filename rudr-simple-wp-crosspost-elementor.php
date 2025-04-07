@@ -5,7 +5,7 @@
  * Description: Adds better compatibility with Elementor and Elementor PRO.
  * Author: Misha Rudrastyh
  * Author URI: https://rudrastyh.com
- * Version: 1.4
+ * Version: 1.5
  */
 
 class Rudr_SWC_Elementor {
@@ -286,6 +286,9 @@ class Rudr_SWC_Elementor {
 		// kit
 		$kit_active_id = get_option( 'elementor_active_kit' );
 		$kit = get_post_meta( $kit_active_id, '_elementor_page_settings', true );
+		if( ! $kit ) {
+			return $element_settings;
+		}
 		$kit_system_colors = $kit[ 'system_colors' ] ? wp_list_pluck( $kit[ 'system_colors' ], '_id' ) : array();
 		$kit_custom_colors = $kit[ 'custom_colors' ] ? wp_list_pluck( $kit[ 'custom_colors' ], 'color', '_id' ) : array();
 		$kit_system_typography = $kit[ 'system_typography' ] ? wp_list_pluck( $kit[ 'system_typography' ], '_id' ) : array();
